@@ -1,0 +1,103 @@
+在做网页爬虫时，我们常常需要提取网页中的URL进行数据的爬取，网络上关于提取URL的正则表达式有很多，
+但我发现绝大多数正则表达式并不能匹配出比较完整的URL，所以我决定自己动手写个正则表达式，以满足日
+后爬虫开发的需要。本文不介绍正则表达式的基本语法，并且使用java语言。
+
+先来了解下关于URL的基本知识：
+URL由三部分组成：资源类型、存放资源的主机域名、资源文件名。
+URL的一般语法格式为：
+(带方括号[]的为可选项)：
+protocol :// hostname[:port] / path / [;parameters][?query]#fragment
+
+
+看下网络上给出常见的表达式：以http://dangdang.com网址为例
+正则表达式①：[a-zA-z]+://[^\s]*        
+用这个表达式匹配出来的URL：
+http://img62.ddimg.cn/upload_img/00555/touch/touch-icon-iphone.png">
+http://img61.ddimg.cn/upload_img/00555/touch/touch-icon-ipad.png">
+http://img63.ddimg.cn/upload_img/00555/touch/touch-icon-iphone4.png">
+http://touch.m.dangdang.com/corecss/common.css?v=20171123fe"
+http://touch.m.dangdang.com/css/iconfont.css?v=20180403"
+http://touch.m.dangdang.com/css/new_index.css?v=20190315"
+http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.eot');src:url('http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.eot#iefix')
+http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.woff')
+
+注意到末尾，会匹配到我们不想要的内容（("),(">),(')），甚至会出现13行情况，显然不满足要求，因为正则表达式：[a-zA-z]+://[^\s]*
+[a-zA-z]+://匹配任意传输协议，[^\s]*匹配任意非空字符，遇到空格或换行才会结束，所以会出现上面的情况
+
+
+正则表达式②：<a .*href=.+</a>
+用这个表达式匹配出来的URL:
+<a class="iconfont" href="http://m.dangdang.com/touch/?t=1554826602" dd_name="logo跳转">&#xe67d;</a>
+<a href="javascript:void(0)" class="pop_back">返回</a>
+<a href="javascript:void(0)" class="clear_input" id="j_clear_input"></a>
+<a class="iconfont" href="http://search.m.dangdang.com/ddcategory.php?t=1554826602" dd_name="跳转分类">&#xe658;</a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+<a href="javascript:void(0);" dd_name="" ><img class="lazy" src="#" imgsrc="http://touch.m.dangdang.com/coreimages/bg_pic.png" alt="" /></a>
+
+正则表达式：<a .*href=.+</a> 是根据网页的特点进行匹配，根据网页中的<a href=>标签进行匹配，所以会匹配出大量的其他符号
+
+还有如：
+^((http|https)://)?([\w-]+\.)+[\w-]+(/[\w-./?%&=]*)?$ 
+^[a-zA-z]+://(\\w+(-\\w+)*)(\\.(\\w+(-\\w+)*))*(\\?\\S*)?$
+http://([w-]+.)+[w-]+(/[w- ./?%&=]*)?
+都得不到我想要的结果。
+
+
+下面讲解我的匹配思路
+首先是协议，此处我们只匹配最常见的http和https协议，所以非常容易得出正则匹配：https?://
+然后匹配后面字符串，正则匹配模式[^\\s]+，此处最后为为什么使用“+”而不是用“*”？因为如果使用“*”，可能只能匹配出
+http://或者https://就结束了
+上面的正则匹配连起来就是https?://[^\\s]+，但这显然不是我们要的效果，末尾会有一些多余的字符("),(">),(')，
+这时候可以考虑使用正则表达式方括号求差集[a-f&&[^bc]]，代表d-f和bc的差集，即aef，有了这个我们就方便多了，可以
+使用这个思路来剔除我们不需要的字符，比如我们想要剔除‘"’，可以这么来写https?://[^\\s&&[[^"]]]+，想要剔除‘,’，
+可以这么来写https?://[^\\s&&[^\"]&&[^\,]]+，到这里基本思路基本已经明确了，想要剔除什么字符只需求它的差集就好
+
+下面给出我爬出http://dangdang.com的网页源代码并提取其中URL的java代码
+import java.io.BufferedInputStream;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Scanner;
+import java.util.regex.*;
+
+public class MyCrawler {
+    public static void main(String []args) throws Exception{
+        String st = null;
+        String st1 = "";
+
+        String regex = "https?://[^\\s&&[^\"]&&[^\']&&[^\\)]&&[^\\,]&&[^\\\\]]+";        //正则匹配
+        Scanner input = new Scanner(System.in);
+        System.out.println("请输入正确的网址：");
+        st = input.nextLine();
+        URL url = new URL(st);
+        InputStream in = url.openStream();
+
+        byte []buf = new byte[1024];
+        BufferedInputStream bfo = new BufferedInputStream(in);
+        int len = 0;
+        while ((len = bfo.read(buf)) != -1) {
+            st1 = st1 + new String(buf, 0, len);
+        }
+
+        System.out.println(st1);
+        System.out.println("------------------------------------------------------------");
+        System.out.println("该网页的所有的超链接：");
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(st1);
+        int count = 0;
+        while (matcher.find()){
+            count++;
+            System.out.println(matcher.group());
+        }
+        System.out.println("共匹配出" + count +"个超链接");
+        in.close();
+        bfo.close();
+    }
+}
+
+至此，我们基本上可以获得该网页上大部分URL
+
+第一次写这种东西，思路混乱，轻喷
