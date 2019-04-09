@@ -21,7 +21,7 @@ http://touch.m.dangdang.com/css/new_index.css?v=20190315"
 http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.eot');src:url('http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.eot#iefix')
 http://m.dangdang.com/h5touchassets/corecss/iconfont/iconfont.woff')
 
-注意到末尾，会匹配到我们不想要的内容（("),(">),(')），甚至会出现13行情况，显然不满足要求，因为正则表达式：[a-zA-z]+://[^\s]*
+注意到末尾，会匹配到我们不想要的内容（("),(">),(')），甚至会出现21行情况，显然不满足要求，因为正则表达式：[a-zA-z]+://[^\s]*
 [a-zA-z]+://匹配任意传输协议，[^\s]*匹配任意非空字符，遇到空格或换行才会结束，所以会出现上面的情况
 
 
